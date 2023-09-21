@@ -1,21 +1,21 @@
-import { NextRequest, NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
-import { Question } from "@prisma/client";
-import { IVoteType } from "@/types/vote";
+import { NextRequest, NextResponse } from 'next/server'
+import prisma from '@/lib/prisma'
+import { Question } from '@prisma/client'
+import { IVoteType } from '@/types/vote'
 
 export interface QuestionResponse extends Question {
-  voteType?: IVoteType;
-  voteId?: number;
-  answerCount?: number;
+  voteType?: IVoteType
+  voteId?: number
+  answerCount?: number
 }
 
 export const GET = async (req: NextRequest, context: any) => {
-  const id = context.params.id;
-  const questionId = Number(id);
+  const id = context.params.id
+  const questionId = Number(id)
   const question = await prisma.question.findUnique({
     where: { id: Number(id) },
-  });
-  if (!question) return NextResponse.json({}, { status: 404 });
+  })
+  if (!question) return NextResponse.json({}, { status: 404 })
 
   const [answerCount, questionVote] = await Promise.all([
     prisma.answer.count({
@@ -36,7 +36,7 @@ export const GET = async (req: NextRequest, context: any) => {
         },
       },
     }),
-  ]);
+  ])
 
   if (!questionVote)
     return NextResponse.json<QuestionResponse>({
@@ -44,7 +44,7 @@ export const GET = async (req: NextRequest, context: any) => {
       voteType: undefined,
       voteId: undefined,
       answerCount,
-    });
+    })
 
   const vote = await prisma.vote.findUnique({
     where: { id: questionVote?.vote?.id },
@@ -52,12 +52,12 @@ export const GET = async (req: NextRequest, context: any) => {
       id: true,
       type: true,
     },
-  });
+  })
 
   return NextResponse.json<QuestionResponse>({
     ...question,
     voteType: vote?.type as IVoteType | undefined,
     voteId: vote?.id,
     answerCount,
-  });
-};
+  })
+}

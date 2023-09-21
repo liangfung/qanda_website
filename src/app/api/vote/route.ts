@@ -1,46 +1,46 @@
-import { NextRequest, NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
-import { IVoteType } from "@/types/vote";
+import { NextRequest, NextResponse } from 'next/server'
+import prisma from '@/lib/prisma'
+import { IVoteType } from '@/types/vote'
 import {
   IGenerateVotePayload,
   IMutateCountKey,
   generateVotePayload,
-} from "@/utils/vote";
+} from '@/utils/vote'
 
 export type ITransactionContext = Omit<
   typeof prisma,
-  "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends"
->;
+  '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'
+>
 
 export interface UpdateVoteResponse {}
 
 export interface UpdateVoteRequest {
-  targetId: number;
-  targetType: string;
-  voteType: IVoteType;
+  targetId: number
+  targetType: string
+  voteType: IVoteType
 }
 
 export const POST = async (request: NextRequest) => {
-  const body: UpdateVoteRequest = await request.json();
-  if (!body) return NextResponse.json({}, { status: 400 });
+  const body: UpdateVoteRequest = await request.json()
+  if (!body) return NextResponse.json({}, { status: 400 })
 
   // mock
-  const authorId = 1;
-  const { targetType, targetId, voteType } = body;
+  const authorId = 1
+  const { targetType, targetId, voteType } = body
 
   const transaction = await prisma.$transaction(async (tx) => {
     try {
       // 1. delete vote relation record
       const voteRelationRecord = await deleteVoteRelationByType(
         { ...body, authorId },
-        tx
-      );
+        tx,
+      )
 
       const prevVote = voteRelationRecord
         ? await findVoteRecord(tx, voteRelationRecord.voteId)
-        : undefined;
+        : undefined
 
-      const preVoteType = prevVote?.type;
+      const preVoteType = prevVote?.type
 
       // if (prevVote?.id) {
       //   await tx.vote.delete({
@@ -51,90 +51,90 @@ export const POST = async (request: NextRequest) => {
       const payload = generateVotePayload({
         preVoteType: preVoteType as IVoteType | undefined,
         nextVoteType: voteType,
-      });
+      })
 
       // 2. create new vote record
-      let newVoteId: number | undefined = undefined;
+      let newVoteId: number | undefined = undefined
       if (payload.nextVoteType) {
         const newVoteRecord = await createVoteRecord(tx, {
           targetType,
           targetId,
           authorId,
           type: payload.nextVoteType,
-        });
-        newVoteId = newVoteRecord.id;
+        })
+        newVoteId = newVoteRecord.id
       }
 
       // 3. create question vote or answer vote record
-      await createVoteRecordByType({ ...body, authorId }, newVoteId, tx);
+      await createVoteRecordByType({ ...body, authorId }, newVoteId, tx)
 
       // 4. update vote cout
-      await updateVoteCountByType({ ...body, authorId }, payload, tx);
+      await updateVoteCountByType({ ...body, authorId }, payload, tx)
 
-      return true;
+      return true
     } catch (error) {
-      console.error("Transaction failed:", error);
-      throw error;
+      console.error('Transaction failed:', error)
+      throw error
     }
-  });
+  })
 
-  if (!transaction) return NextResponse.json({}, { status: 500 });
+  if (!transaction) return NextResponse.json({}, { status: 500 })
 
-  return NextResponse.json(null, { status: 200 });
-};
+  return NextResponse.json(null, { status: 200 })
+}
 
 async function createVoteRecord(
   tx: ITransactionContext,
   data: {
-    targetType: string;
-    targetId: number;
-    authorId: number;
-    type: IVoteType;
-  }
+    targetType: string
+    targetId: number
+    authorId: number
+    type: IVoteType
+  },
 ) {
   return tx.vote.create({
     data,
-  });
+  })
 }
 
 async function deleteVoteRelationByType(
   { targetType, targetId, authorId }: UpdateVoteRequest & { authorId: number },
-  tx: ITransactionContext
+  tx: ITransactionContext,
 ) {
   try {
-    let voteRecord = null;
-    if (targetType === "question") {
+    let voteRecord = null
+    if (targetType === 'question') {
       voteRecord = await findQuestionVoteRecord(tx, {
         questionId: targetId,
         authorId,
-      });
-      if (voteRecord) await deleteQuestionVoteRecord(tx, voteRecord.id);
+      })
+      if (voteRecord) await deleteQuestionVoteRecord(tx, voteRecord.id)
     } else {
       voteRecord = await findAnswerVoteRecord(tx, {
         answerId: targetId,
         authorId,
-      });
-      if (voteRecord) deleteAnswerVoteRecord(tx, voteRecord.id);
+      })
+      if (voteRecord) deleteAnswerVoteRecord(tx, voteRecord.id)
     }
-    return voteRecord;
+    return voteRecord
   } catch (error) {
-    throw new Error(String(error));
+    throw new Error(String(error))
   }
 }
 
 async function createVoteRecordByType(
   { targetType, targetId, authorId }: UpdateVoteRequest & { authorId: number },
   newVoteId: number | undefined,
-  tx: ITransactionContext
+  tx: ITransactionContext,
 ) {
   try {
-    if (targetType === "question") {
+    if (targetType === 'question') {
       if (newVoteId) {
         await createQuestionVoteRecord(tx, {
           voteId: newVoteId,
           questionId: targetId,
           authorId,
-        });
+        })
       }
     } else {
       if (newVoteId) {
@@ -142,121 +142,121 @@ async function createVoteRecordByType(
           voteId: newVoteId,
           answerId: targetId,
           authorId,
-        });
+        })
       }
     }
   } catch (e) {
-    throw new Error(String(e));
+    throw new Error(String(e))
   }
 }
 
 async function updateVoteCountByType(
   { targetType, targetId }: UpdateVoteRequest & { authorId: number },
   payload: IGenerateVotePayload,
-  tx: ITransactionContext
+  tx: ITransactionContext,
 ) {
   try {
-    if (targetType === "question") {
+    if (targetType === 'question') {
       await updateVoteCountOfQuestion(tx, {
         id: targetId,
         opKey: payload.mutationKey,
         count: payload.mutationValue,
-      });
+      })
     } else {
       await updateVoteCountOfAnswer(tx, {
         id: targetId,
         opKey: payload.mutationKey,
         count: payload.mutationValue,
-      });
+      })
     }
   } catch (e) {
-    throw new Error(String(e));
+    throw new Error(String(e))
   }
 }
 
 async function createQuestionVoteRecord(
   tx: ITransactionContext,
   data: {
-    voteId: number;
-    questionId: number;
-    authorId: number;
-  }
+    voteId: number
+    questionId: number
+    authorId: number
+  },
 ) {
   return tx.questionVote.create({
     data,
-  });
+  })
 }
 
 async function createAnswerVoteRecord(
   tx: ITransactionContext,
   data: {
-    voteId: number;
-    answerId: number;
-    authorId: number;
-  }
+    voteId: number
+    answerId: number
+    authorId: number
+  },
 ) {
   return tx.answerVote.create({
     data,
-  });
+  })
 }
 
 async function deleteQuestionVoteRecord(tx: ITransactionContext, id: number) {
-  if (!id) return;
+  if (!id) return
   return tx.questionVote.delete({
     where: {
       id,
     },
-  });
+  })
 }
 
 async function deleteAnswerVoteRecord(tx: ITransactionContext, id: number) {
-  if (!id) return;
+  if (!id) return
   return tx.answerVote.delete({
     where: {
       id,
     },
-  });
+  })
 }
 
 async function findQuestionVoteRecord(
   tx: ITransactionContext,
   data: {
-    questionId: number;
-    authorId: number;
-  }
+    questionId: number
+    authorId: number
+  },
 ) {
   return tx.questionVote.findFirst({
     where: data,
-  });
+  })
 }
 
 async function findAnswerVoteRecord(
   tx: ITransactionContext,
   data: {
-    answerId: number;
-    authorId: number;
-  }
+    answerId: number
+    authorId: number
+  },
 ) {
   return tx.answerVote.findFirst({
     where: data,
-  });
+  })
 }
 
 async function findVoteRecord(tx: ITransactionContext, voteId: number) {
   return tx.vote.findFirst({
     where: { id: voteId },
-  });
+  })
 }
 
 async function updateVoteCountOfAnswer(
   tx: ITransactionContext,
   data: {
-    id: number;
-    opKey: IMutateCountKey;
-    count: number;
-  }
+    id: number
+    opKey: IMutateCountKey
+    count: number
+  },
 ) {
-  const { id, opKey, count } = data;
+  const { id, opKey, count } = data
   return tx.answer.update({
     where: {
       id,
@@ -266,18 +266,18 @@ async function updateVoteCountOfAnswer(
         [opKey]: count,
       },
     },
-  });
+  })
 }
 
 async function updateVoteCountOfQuestion(
   tx: ITransactionContext,
   data: {
-    id: number;
-    opKey: IMutateCountKey;
-    count: number;
-  }
+    id: number
+    opKey: IMutateCountKey
+    count: number
+  },
 ) {
-  const { id, opKey, count } = data;
+  const { id, opKey, count } = data
   return tx.question.update({
     where: {
       id,
@@ -287,5 +287,5 @@ async function updateVoteCountOfQuestion(
         [opKey]: count,
       },
     },
-  });
+  })
 }
