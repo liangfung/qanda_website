@@ -10,15 +10,17 @@ npm install
 
 ```bash
 npx prisma migrate dev
-
-# maybe need to run this if there is no data
-npx prisma seed
 ```
 
 ### 3. Start the app
 
 ```bash
 npm run dev
+```
+
+### if there is no data, run this
+```bash
+npx prisma seed
 ```
 
 The app is now running, navigate to [`http://localhost:3000/`](http://localhost:3000/) in your browser to explore its UI.
