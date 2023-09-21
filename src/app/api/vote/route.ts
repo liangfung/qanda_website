@@ -42,6 +42,12 @@ export const POST = async (request: NextRequest) => {
 
       const preVoteType = prevVote?.type;
 
+      // if (prevVote?.id) {
+      //   await tx.vote.delete({
+      //     where: { id: prevVote.id },
+      //   });
+      // }
+
       const payload = generateVotePayload({
         preVoteType: preVoteType as IVoteType | undefined,
         nextVoteType: voteType,
