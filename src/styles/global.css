@@ -1,0 +1,11 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import './variables.css';
+
+@layer components {
+  .test {
+    @apply font-bold;
+  }
+}

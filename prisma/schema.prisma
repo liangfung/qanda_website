@@ -1,0 +1,79 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// enum VoteTargetType {
+//   UNSPECIFIED
+//   QUESTION
+//   ANSWER
+// }
+
+model Question {
+  id           Int            @id @default(autoincrement())
+  title        String
+  content      String
+  authorId     Int
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime?
+  voteCount    Int
+  QuestionVote QuestionVote[]
+}
+
+model Answer {
+  id         Int          @id @default(autoincrement())
+  content    String
+  questionId Int
+  authorId   Int
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime?
+  voteCount  Int
+  AnswerVote AnswerVote[]
+}
+
+model Vote {
+  id           Int            @id @default(autoincrement())
+  type         String
+  targetId     Int
+  targetType   String
+  authorId     Int?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime?
+  QuestionVote QuestionVote[]
+  AnswerVote   AnswerVote[]
+}
+
+model QuestionVote {
+  id         Int       @id @default(autoincrement())
+  questionId Int
+  question   Question  @relation(fields: [questionId], references: [id])
+  voteId     Int
+  vote       Vote      @relation(fields: [voteId], references: [id])
+  authorId   Int?
+  author     User?     @relation(fields: [authorId], references: [id])
+  createdAt  DateTime  @default(now())
+}
+
+model AnswerVote {
+  id        Int       @id @default(autoincrement())
+  answerId  Int
+  answer    Answer    @relation(fields: [answerId], references: [id])
+  voteId    Int
+  vote      Vote      @relation(fields: [voteId], references: [id])
+  authorId  Int?
+  author    User?     @relation(fields: [authorId], references: [id])
+  createdAt DateTime  @default(now())
+}
+
+model User {
+  id           Int            @id @default(autoincrement())
+  createdAt    DateTime       @default(now())
+  email        String         @unique
+  name         String?
+  QuestionVote QuestionVote[]
+  AnswerVote   AnswerVote[]
+}
