@@ -18,11 +18,6 @@ npx prisma migrate dev
 npm run dev
 ```
 
-### if there is no data, run this
-```bash
-npx prisma seed
-```
-
 The app is now running, navigate to [`http://localhost:3000/`](http://localhost:3000/) in your browser to explore its UI.
 
 ## Tech
@@ -41,3 +36,8 @@ The app is now running, navigate to [`http://localhost:3000/`](http://localhost:
   - ErrorBoundary and retry
   - FE optimistic updates
 - Responsive design
+
+> if there is no data, run this
+```bash
+npx prisma seed
+```
