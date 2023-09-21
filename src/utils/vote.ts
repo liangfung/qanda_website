@@ -7,6 +7,8 @@ export type IGenerateVotePayloadOptions = {
 
 export type IMutateCountKey = 'increment' | 'decrement'
 
+export type IGenerateVotePayload = ReturnType<typeof generateVotePayload>
+
 export const generateVotePayload = (
   option: IGenerateVotePayloadOptions,
 ): {

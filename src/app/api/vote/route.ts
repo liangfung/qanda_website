@@ -1,192 +1,257 @@
-import { NextRequest, NextResponse } from 'next/server'
-import prisma from '@/lib/prisma'
-import { IVoteType } from '@/types/vote'
-import { IMutateCountKey, generateVotePayload } from '@/utils/vote'
+import { NextRequest, NextResponse } from "next/server";
+import prisma from "@/lib/prisma";
+import { IVoteType } from "@/types/vote";
+import {
+  IGenerateVotePayload,
+  IMutateCountKey,
+  generateVotePayload,
+} from "@/utils/vote";
+
+export type ITransactionContext = Omit<
+  typeof prisma,
+  "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends"
+>;
 
 export interface UpdateVoteResponse {}
 
 export interface UpdateVoteRequest {
-  targetId: number
-  voteId?: number
-  voteType?: IVoteType
-  targetType: string
+  targetId: number;
+  targetType: string;
+  voteType: IVoteType;
 }
 
 export const POST = async (request: NextRequest) => {
-  const body = await request.json()
-  if (!body) return NextResponse.json({}, { status: 400 })
+  const body: UpdateVoteRequest = await request.json();
+  if (!body) return NextResponse.json({}, { status: 400 });
 
-  const { targetType, targetId, voteType, voteId } = body
-  const authorId = 1
+  // mock
+  const authorId = 1;
+  const { targetType, targetId, voteType } = body;
 
-  const transaction = await prisma.$transaction(async (prisma) => {
+  const transaction = await prisma.$transaction(async (tx) => {
     try {
-      // 1. find vote record
-      if (voteId) {
-        let voteRecord = null
-        if (targetType === 'question') {
-          voteRecord = await findQuestionVoteRecord({
-            voteId,
-            questionId: targetId,
-            authorId: 1,
-          })
-          if (voteRecord) await deleteQuestionVoteRecord(voteRecord.id)
-        } else {
-          voteRecord = await findAnswerVoteRecord({
-            voteId,
-            answerId: targetId,
-            authorId: 1,
-          })
-          // 2. if vote record exists, update vote record
-          if (voteRecord) deleteAnswerVoteRecord(voteRecord.id)
-        }
-      }
+      // 1. delete vote relation record
+      const voteRelationRecord = await deleteVoteRelationByType(
+        { ...body, authorId },
+        tx
+      );
 
-      const prevVote = voteId ? await findVoteRecord(voteId) : undefined
+      const prevVote = voteRelationRecord
+        ? await findVoteRecord(tx, voteRelationRecord.voteId)
+        : undefined;
 
-      const preVoteType = prevVote?.type
+      const preVoteType = prevVote?.type;
 
       const payload = generateVotePayload({
         preVoteType: preVoteType as IVoteType | undefined,
         nextVoteType: voteType,
-      })
+      });
 
-      // create new vote record
-      let newVoteId: number | undefined = undefined
+      // 2. create new vote record
+      let newVoteId: number | undefined = undefined;
       if (payload.nextVoteType) {
-        const newVoteRecord = await createVoteRecord({
+        const newVoteRecord = await createVoteRecord(tx, {
           targetType,
           targetId,
           authorId,
           type: payload.nextVoteType,
-        })
-        newVoteId = newVoteRecord.id
+        });
+        newVoteId = newVoteRecord.id;
       }
 
-      // create question vote or answer vote record
-      if (targetType === 'question') {
-        if (newVoteId) {
-          await createQuestionVoteRecord({
-            voteId: newVoteId,
-            questionId: targetId,
-            authorId,
-          })
-        }
-        await updateQuestionVoteCount(
-          targetId,
-          payload.mutationKey,
-          payload.mutationValue,
-        )
-      } else {
-        if (newVoteId) {
-          await createAnswerVoteRecord({
-            voteId: newVoteId,
-            answerId: targetId,
-            authorId,
-          })
-        }
-        await updateAnswerVoteCount(
-          targetId,
-          payload.mutationKey,
-          payload.mutationValue,
-        )
-      }
+      // 3. create question vote or answer vote record
+      await createVoteRecordByType({ ...body, authorId }, newVoteId, tx);
 
-      return true
+      // 4. update vote cout
+      await updateVoteCountByType({ ...body, authorId }, payload, tx);
+
+      return true;
     } catch (error) {
-      console.error('Transaction failed:', error)
-      throw error
+      console.error("Transaction failed:", error);
+      throw error;
     }
-  })
+  });
 
-  if (!transaction) return NextResponse.json({}, { status: 500 })
+  if (!transaction) return NextResponse.json({}, { status: 500 });
 
-  return NextResponse.json(null, { status: 200 })
-}
+  return NextResponse.json(null, { status: 200 });
+};
 
-async function createVoteRecord(data: {
-  targetType: string
-  targetId: number
-  authorId: number
-  type: IVoteType
-}) {
-  return prisma.vote.create({
+async function createVoteRecord(
+  tx: ITransactionContext,
+  data: {
+    targetType: string;
+    targetId: number;
+    authorId: number;
+    type: IVoteType;
+  }
+) {
+  return tx.vote.create({
     data,
-  })
+  });
 }
 
-async function createQuestionVoteRecord(data: {
-  voteId: number
-  questionId: number
-  authorId: number
-}) {
-  return prisma.questionVote.create({
+async function deleteVoteRelationByType(
+  { targetType, targetId, authorId }: UpdateVoteRequest & { authorId: number },
+  tx: ITransactionContext
+) {
+  try {
+    let voteRecord = null;
+    if (targetType === "question") {
+      voteRecord = await findQuestionVoteRecord(tx, {
+        questionId: targetId,
+        authorId,
+      });
+      if (voteRecord) await deleteQuestionVoteRecord(tx, voteRecord.id);
+    } else {
+      voteRecord = await findAnswerVoteRecord(tx, {
+        answerId: targetId,
+        authorId,
+      });
+      if (voteRecord) deleteAnswerVoteRecord(tx, voteRecord.id);
+    }
+    return voteRecord;
+  } catch (error) {
+    throw new Error(String(error));
+  }
+}
+
+async function createVoteRecordByType(
+  { targetType, targetId, authorId }: UpdateVoteRequest & { authorId: number },
+  newVoteId: number | undefined,
+  tx: ITransactionContext
+) {
+  try {
+    if (targetType === "question") {
+      if (newVoteId) {
+        await createQuestionVoteRecord(tx, {
+          voteId: newVoteId,
+          questionId: targetId,
+          authorId,
+        });
+      }
+    } else {
+      if (newVoteId) {
+        await createAnswerVoteRecord(tx, {
+          voteId: newVoteId,
+          answerId: targetId,
+          authorId,
+        });
+      }
+    }
+  } catch (e) {
+    throw new Error(String(e));
+  }
+}
+
+async function updateVoteCountByType(
+  { targetType, targetId }: UpdateVoteRequest & { authorId: number },
+  payload: IGenerateVotePayload,
+  tx: ITransactionContext
+) {
+  try {
+    if (targetType === "question") {
+      await updateVoteCountOfQuestion(tx, {
+        id: targetId,
+        opKey: payload.mutationKey,
+        count: payload.mutationValue,
+      });
+    } else {
+      await updateVoteCountOfAnswer(tx, {
+        id: targetId,
+        opKey: payload.mutationKey,
+        count: payload.mutationValue,
+      });
+    }
+  } catch (e) {
+    throw new Error(String(e));
+  }
+}
+
+async function createQuestionVoteRecord(
+  tx: ITransactionContext,
+  data: {
+    voteId: number;
+    questionId: number;
+    authorId: number;
+  }
+) {
+  return tx.questionVote.create({
     data,
-  })
+  });
 }
 
-async function createAnswerVoteRecord(data: {
-  voteId: number
-  answerId: number
-  authorId: number
-}) {
-  return prisma.answerVote.create({
+async function createAnswerVoteRecord(
+  tx: ITransactionContext,
+  data: {
+    voteId: number;
+    answerId: number;
+    authorId: number;
+  }
+) {
+  return tx.answerVote.create({
     data,
-  })
+  });
 }
 
-// 是否需要手动删除？
-async function deleteQuestionVoteRecord(id: number) {
-  if (!id) return
-  return prisma.questionVote.delete({
+async function deleteQuestionVoteRecord(tx: ITransactionContext, id: number) {
+  if (!id) return;
+  return tx.questionVote.delete({
     where: {
       id,
     },
-  })
+  });
 }
 
-// 是否需要手动删除？
-async function deleteAnswerVoteRecord(id: number) {
-  if (!id) return
-  return prisma.questionVote.delete({
+async function deleteAnswerVoteRecord(tx: ITransactionContext, id: number) {
+  if (!id) return;
+  return tx.answerVote.delete({
     where: {
       id,
     },
-  })
+  });
 }
 
-async function findQuestionVoteRecord(data: {
-  voteId: number
-  questionId: number
-  authorId: number
-}) {
-  return prisma.questionVote.findFirst({
+async function findQuestionVoteRecord(
+  tx: ITransactionContext,
+  data: {
+    questionId: number;
+    authorId: number;
+  }
+) {
+  return tx.questionVote.findFirst({
     where: data,
-  })
+  });
 }
 
-async function findAnswerVoteRecord(data: {
-  voteId: number
-  answerId: number
-  authorId: number
-}) {
-  return prisma.answerVote.findFirst({
+async function findAnswerVoteRecord(
+  tx: ITransactionContext,
+  data: {
+    answerId: number;
+    authorId: number;
+  }
+) {
+  return tx.answerVote.findFirst({
     where: data,
-  })
+  });
 }
 
-async function findVoteRecord(voteId: number) {
-  return prisma.vote.findFirst({
+async function findVoteRecord(tx: ITransactionContext, voteId: number) {
+  return tx.vote.findFirst({
     where: { id: voteId },
-  })
+  });
 }
 
-async function updateAnswerVoteCount(
-  id: number,
-  opKey: IMutateCountKey,
-  count: number,
+async function updateVoteCountOfAnswer(
+  tx: ITransactionContext,
+  data: {
+    id: number;
+    opKey: IMutateCountKey;
+    count: number;
+  }
 ) {
-  return prisma.answer.update({
+  const { id, opKey, count } = data;
+  return tx.answer.update({
     where: {
       id,
     },
@@ -195,15 +260,19 @@ async function updateAnswerVoteCount(
         [opKey]: count,
       },
     },
-  })
+  });
 }
 
-async function updateQuestionVoteCount(
-  id: number,
-  opKey: IMutateCountKey,
-  count: number,
+async function updateVoteCountOfQuestion(
+  tx: ITransactionContext,
+  data: {
+    id: number;
+    opKey: IMutateCountKey;
+    count: number;
+  }
 ) {
-  return prisma.question.update({
+  const { id, opKey, count } = data;
+  return tx.question.update({
     where: {
       id,
     },
@@ -212,5 +281,5 @@ async function updateQuestionVoteCount(
         [opKey]: count,
       },
     },
-  })
+  });
 }
