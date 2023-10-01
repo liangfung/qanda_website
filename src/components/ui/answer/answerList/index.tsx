@@ -21,6 +21,7 @@ import { IResponse } from '@/types/response'
 import { IVotePayload } from '@/components/widgets/vote/type.vote'
 import { UpdateVoteRequest } from '@/app/api/vote/route'
 import toast, { Toaster } from 'react-hot-toast'
+import { IVoteTargetType } from '@/types/vote'
 
 interface Props extends ComponentBaseProps {
   question_id: number
@@ -116,9 +117,8 @@ export const AnswerList: React.FC<Props> = ({
     })
     const payload: UpdateVoteRequest = {
       targetId: answerId,
-      targetType: 'answer',
+      targetType: IVoteTargetType.answer,
       voteType: e.voteType,
-      voteId,
     }
     fetchWrapper('/api/vote', {
       method: 'POST',

@@ -10,6 +10,7 @@ import { QuestionResponse } from '@/app/api/questions/[id]/route'
 import { EditInfoFooter } from '../editInfoFooter'
 import { MarkDown } from '@/components/widgets/markdown'
 import { UpdateVoteRequest } from '@/app/api/vote/route'
+import { IVoteTargetType } from '@/types/vote'
 
 interface Props extends ComponentBaseProps {
   data: QuestionResponse
@@ -21,9 +22,8 @@ export const QuestionDetail: React.FC<Props> = ({ data }) => {
     setDetail((d) => ({ ...d, ...p.nextVote }))
     const payload: UpdateVoteRequest = {
       targetId: detail.id,
-      targetType: 'question',
+      targetType: IVoteTargetType.question,
       voteType: p.voteType,
-      voteId: detail.voteId,
     }
     fetchWrapper('/api/vote', {
       method: 'POST',
@@ -54,7 +54,10 @@ export const QuestionDetail: React.FC<Props> = ({ data }) => {
         />
         <div className="flex-1">
           <MarkDown data={detail.content} />
-          <EditInfoFooter type="question" targetId={detail.id} />
+          <EditInfoFooter
+            type={IVoteTargetType.question}
+            targetId={detail.id}
+          />
         </div>
       </div>
       <Toaster />

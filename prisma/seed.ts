@@ -1,3 +1,4 @@
+import { IVoteTargetType, IVoteType } from '@/types/vote'
 import { PrismaClient } from '@prisma/client'
 
 const prisma = new PrismaClient()
@@ -43,18 +44,18 @@ async function seed() {
   // vote record
   const vote1 = await prisma.vote.create({
     data: {
-      type: 'up',
+      type: IVoteType.up,
       targetId: question.id,
-      targetType: 'question',
+      targetType: IVoteTargetType.question,
       authorId: 1,
     },
   })
 
   const vote2 = await prisma.vote.create({
     data: {
-      type: 'down',
+      type: IVoteType.down,
       targetId: 2,
-      targetType: 'answer',
+      targetType: IVoteTargetType.answer,
       authorId: 1,
     },
   })

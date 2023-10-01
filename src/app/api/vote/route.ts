@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
-import { IVoteType } from '@/types/vote'
+import { IVoteType, IVoteTargetType } from '@/types/vote'
 import {
   IGenerateVotePayload,
   IMutateCountKey,
@@ -103,7 +103,7 @@ async function deleteVoteRelationByType(
 ) {
   try {
     let voteRecord = null
-    if (targetType === 'question') {
+    if (targetType === IVoteTargetType.question) {
       voteRecord = await findQuestionVoteRecord(tx, {
         questionId: targetId,
         authorId,
@@ -128,7 +128,7 @@ async function createVoteRecordByType(
   tx: ITransactionContext,
 ) {
   try {
-    if (targetType === 'question') {
+    if (targetType === IVoteTargetType.question) {
       if (newVoteId) {
         await createQuestionVoteRecord(tx, {
           voteId: newVoteId,
@@ -156,7 +156,7 @@ async function updateVoteCountByType(
   tx: ITransactionContext,
 ) {
   try {
-    if (targetType === 'question') {
+    if (targetType === IVoteTargetType.question) {
       await updateVoteCountOfQuestion(tx, {
         id: targetId,
         opKey: payload.mutationKey,

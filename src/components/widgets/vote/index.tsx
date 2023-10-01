@@ -4,7 +4,7 @@ import { formatNumberUnit } from '@/utils'
 import { VoteButton } from './voteButton'
 import { IVotePayload } from './type.vote'
 import { IVoteType } from '@/types/vote'
-import { generateVotePayload } from '@/utils/vote'
+import { IMutateCountKey, generateVotePayload } from '@/utils/vote'
 interface Props extends ComponentBaseProps {
   voteCount: number
   onVote: (p: IVotePayload) => void
@@ -18,8 +18,8 @@ export const Vote: React.FC<Props> = ({
   voteType,
   onVote,
 }) => {
-  const isUpVoteActive = voteType === 'up'
-  const isDownVoteActive = voteType === 'down'
+  const isUpVoteActive = voteType === IVoteType.up
+  const isDownVoteActive = voteType === IVoteType.down
 
   const handleClickButton = (nextVoteType: IVoteType) => {
     let payload = generateVotePayload({
@@ -35,7 +35,7 @@ export const Vote: React.FC<Props> = ({
       nextVote: {
         voteType: payload.nextVoteType,
         voteCount:
-          payload.mutationKey === 'increment'
+          payload.mutationKey === IMutateCountKey.increment
             ? voteCount + payload.mutationValue
             : voteCount - payload.mutationValue,
       },
@@ -45,15 +45,15 @@ export const Vote: React.FC<Props> = ({
   return (
     <div className="flex flex-col gap-2 items-center">
       <VoteButton
-        voteType="up"
+        voteType={IVoteType.up}
         isActive={isUpVoteActive}
-        onChange={() => handleClickButton('up')}
+        onChange={() => handleClickButton(IVoteType.up)}
       />
       {formatNumberUnit(voteCount)}
       <VoteButton
-        voteType="down"
+        voteType={IVoteType.down}
         isActive={isDownVoteActive}
-        onChange={() => handleClickButton('down')}
+        onChange={() => handleClickButton(IVoteType.down)}
       />
     </div>
   )

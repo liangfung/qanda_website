@@ -3,12 +3,13 @@
 import { DownArrowIcon, UpArrowIcon } from '@/components/icons'
 import { useState, useEffect } from 'react'
 import './vote.css'
+import { IVoteType } from '@/types/vote'
 
 interface Props extends ComponentBaseProps {
-  voteType: 'up' | 'down'
+  voteType: IVoteType
   disabled?: boolean
   isActive?: boolean
-  onChange?: (voteType: 'up' | 'down') => void
+  onChange?: (voteType: IVoteType) => void
 }
 
 export const VoteButton: React.FC<Props> = ({
@@ -38,7 +39,7 @@ export const VoteButton: React.FC<Props> = ({
         isActive ? 'vote-button-active' : ''
       }`}
     >
-      {voteType === 'up' ? (
+      {voteType === IVoteType.up ? (
         <UpArrowIcon
           className={`vote-button-icon ${
             isActive ? 'vote-button-icon-active' : ''

@@ -10,6 +10,7 @@
     "prepare": "husky install",
     "prettier": "prettier --write 'src/**/*.{ts,tsx}'",
     "eslint": "eslint",
+    "tslint": "tsc --noEmit",
     "test:ci": "jest --ci",
     "lint-staged": "lint-staged"
   },

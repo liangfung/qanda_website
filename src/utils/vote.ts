@@ -5,7 +5,10 @@ export type IGenerateVotePayloadOptions = {
   nextVoteType: IVoteType
 }
 
-export type IMutateCountKey = 'increment' | 'decrement'
+export enum IMutateCountKey {
+  'increment' = 'increment',
+  'decrement' = 'decrement',
+}
 
 export type IGenerateVotePayload = ReturnType<typeof generateVotePayload>
 
@@ -18,23 +21,24 @@ export const generateVotePayload = (
 } => {
   let nextVoteType: IVoteType | undefined = option.nextVoteType
   let mutationValue: number = 0
-  const isUpvoteAcitve = option.preVoteType === 'up'
-  const isDownvoteAcitve = option.preVoteType === 'down'
+  const isUpvoteAcitve = option.preVoteType === IVoteType.up
+  const isDownvoteAcitve = option.preVoteType === IVoteType.down
   if (isUpvoteAcitve) {
     mutationValue =
-      nextVoteType === 'up' ? mutationValue - 1 : mutationValue - 2
-    nextVoteType = nextVoteType === 'up' ? undefined : nextVoteType
+      nextVoteType === IVoteType.up ? mutationValue - 1 : mutationValue - 2
+    nextVoteType = nextVoteType === IVoteType.up ? undefined : nextVoteType
   } else if (isDownvoteAcitve) {
     mutationValue =
-      nextVoteType === 'down' ? mutationValue + 1 : mutationValue + 2
-    nextVoteType = nextVoteType === 'down' ? undefined : nextVoteType
+      nextVoteType === IVoteType.down ? mutationValue + 1 : mutationValue + 2
+    nextVoteType = nextVoteType === IVoteType.down ? undefined : nextVoteType
   } else {
-    mutationValue = nextVoteType === 'up' ? 1 : -1
+    mutationValue = nextVoteType === IVoteType.up ? 1 : -1
   }
 
   return {
     nextVoteType,
-    mutationKey: mutationValue > 0 ? 'increment' : 'decrement',
+    mutationKey:
+      mutationValue > 0 ? IMutateCountKey.increment : IMutateCountKey.decrement,
     mutationValue: Math.abs(mutationValue),
   }
 }

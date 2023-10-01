@@ -1,8 +1,9 @@
 'use client'
+import { IVoteTargetType } from '@/types/vote'
 import Image from 'next/image'
 
 interface Props extends ComponentBaseProps {
-  type: 'question' | 'answer'
+  type: IVoteTargetType
   targetId: number
 }
 
